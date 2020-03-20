@@ -84,6 +84,8 @@ private:
   std::string primitive_filename_; /** where to find the motion primitives for the current robot */
   int force_scratch_limit_; /** the number of cells that have to be changed in the costmap to force the planner to plan from scratch even if its an incremental planner */
 
+  int smooth_window_;
+
   unsigned char lethal_obstacle_;
   unsigned char inscribed_inflated_obstacle_;
   unsigned char circumscribed_cost_;
@@ -96,6 +98,7 @@ private:
   unsigned int current_env_height_;
 
   ros::Publisher plan_pub_;
+  ros::Publisher rough_plan_pub_;
   ros::Publisher stats_publisher_;
 };
 };
