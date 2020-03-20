@@ -107,7 +107,7 @@ void SBPLLatticePlanner::initialize(std::string name, costmap_2d::Costmap2DROS* 
     private_nh.param("forward_search", forward_search_, bool(false));
     private_nh.param("primitive_filename",primitive_filename_,string(""));
     private_nh.param("force_scratch_limit",force_scratch_limit_,500);
-
+    private_nh.param("smooth_window",smooth_window_, 20);
     double nominalvel_mpersecs, timetoturn45degsinplace_secs;
     private_nh.param("nominalvel_mpersecs", nominalvel_mpersecs, 0.4);
     private_nh.param("timetoturn45degsinplace_secs", timetoturn45degsinplace_secs, 0.6);
@@ -205,6 +205,7 @@ void SBPLLatticePlanner::initialize(std::string name, costmap_2d::Costmap2DROS* 
 
     ROS_INFO("[sbpl_lattice_planner] Initialized successfully");
     plan_pub_ = private_nh.advertise<nav_msgs::Path>("plan", 1);
+    rough_plan_pub_ = private_nh.advertise<nav_msgs::Path>("rough_plan", 1);
     stats_publisher_ = private_nh.advertise<sbpl_lattice_planner::SBPLLatticePlannerStats>("sbpl_lattice_planner_stats", 1);
     
     initialized_ = true;
@@ -430,11 +431,8 @@ bool SBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped& start,
   ROS_DEBUG("Plan has %d points.\n", (int)sbpl_path.size());
   ros::Time plan_time = ros::Time::now();
 
+  std::vector<geometry_msgs::PoseStamped> rough_plan;
   //create a message for the plan 
-  nav_msgs::Path gui_path;
-  gui_path.poses.resize(sbpl_path.size());
-  gui_path.header.frame_id = costmap_ros_->getGlobalFrameID();
-  gui_path.header.stamp = plan_time;
   for(unsigned int i=0; i<sbpl_path.size(); i++){
     geometry_msgs::PoseStamped pose;
     pose.header.stamp = plan_time;
@@ -451,11 +449,51 @@ bool SBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped& start,
     pose.pose.orientation.z = temp.getZ();
     pose.pose.orientation.w = temp.getW();
 
-    plan.push_back(pose);
+    rough_plan.push_back(pose);
 
-    gui_path.poses[i] = plan[i];
   }
+
+  nav_msgs::Path gui_path;
+  gui_path.header.frame_id = costmap_ros_->getGlobalFrameID();
+  gui_path.header.stamp = plan_time;
+  
+  ROS_DEBUG("Smoothing with %d window", smooth_window_);
+  for (int i=0; i < rough_plan.size(); i++){
+    geometry_msgs::PoseStamped smoothed_pose;
+    smoothed_pose.header = rough_plan[i].header;
+    int total = 0;
+
+    for (int j = ((i - smooth_window_ < 0) ? 0 : i - smooth_window_); 
+            j <= ((i + smooth_window_) < rough_plan.size() ? i + smooth_window_ : rough_plan.size() - 1); 
+            j++)
+    {
+        smoothed_pose.pose.position.x += rough_plan[j].pose.position.x;
+        smoothed_pose.pose.position.y += rough_plan[j].pose.position.y;
+        smoothed_pose.pose.position.z += rough_plan[j].pose.position.z;
+        smoothed_pose.pose.orientation.x += rough_plan[j].pose.orientation.x;
+        smoothed_pose.pose.orientation.y += rough_plan[j].pose.orientation.y;
+        smoothed_pose.pose.orientation.z += rough_plan[j].pose.orientation.z;
+        smoothed_pose.pose.orientation.w += rough_plan[j].pose.orientation.w;
+        total++;
+    }
+    smoothed_pose.pose.position.x /= total;
+    smoothed_pose.pose.position.y /= total;
+    smoothed_pose.pose.position.z /= total;
+    smoothed_pose.pose.orientation.x /= total;
+    smoothed_pose.pose.orientation.y /= total;
+    smoothed_pose.pose.orientation.z /= total;
+    smoothed_pose.pose.orientation.w /= total;
+    plan.push_back(smoothed_pose);
+  }
+  ROS_DEBUG("Smoothed");
+
+  gui_path.poses = plan;
   plan_pub_.publish(gui_path);
+
+  gui_path.poses = rough_plan;
+  rough_plan_pub_.publish(gui_path);
+  
+  
   publishStats(solution_cost, sbpl_path.size(), start, goal);
 
   return true;
