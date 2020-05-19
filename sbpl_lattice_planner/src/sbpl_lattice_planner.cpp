@@ -501,11 +501,18 @@ bool SBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped& start, const
 
     tf2::Quaternion temp;
     temp.setRPY(0, 0, sbpl_path[i].theta);
-    pose.pose.orientation.x = temp.getX();
-    pose.pose.orientation.y = temp.getY();
-    pose.pose.orientation.z = temp.getZ();
-    pose.pose.orientation.w = temp.getW();
-
+//    if (i != sbpl_path.size() - 1 and i != 0) {
+//        // overwrite orientation for points in the middle of the path
+//        pose.pose.orientation = tf::createQuaternionMsgFromYaw(std::atan2(rough_plan[i].pose.position.y - rough_plan[i-1].pose.position.y,
+//        rough_plan[i].pose.position.x - rough_plan[i-1].pose.position.x));
+//    }
+//    else {
+        // keep orientation for last point
+        pose.pose.orientation.x = temp.getX();
+        pose.pose.orientation.y = temp.getY();
+        pose.pose.orientation.z = temp.getZ();
+        pose.pose.orientation.w = temp.getW();
+    //}
     rough_plan.push_back(pose);
   }
 
@@ -572,6 +579,14 @@ bool SBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped& start, const
     smoothed_pose.pose.orientation.w /= total;
     plan.push_back(smoothed_pose);
   }
+ 
+  // Overwrite orientation
+  for (int i = 0; i < plan.size() - 1; i++)
+  {
+    plan[i].pose.orientation = tf::createQuaternionMsgFromYaw(std::atan2(plan[i+1].pose.position.y - plan[i].pose.position.y,
+    plan[i+1].pose.position.x - plan[i].pose.position.x));
+  }
+
   ROS_DEBUG("Smoothed");
 
   gui_path.poses = plan;
