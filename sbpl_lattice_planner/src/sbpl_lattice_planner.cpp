@@ -42,6 +42,7 @@
 
 #include <costmap_2d/inflation_layer.h>
 #include <tf2/LinearMath/Quaternion.h>
+#include <tf/transform_broadcaster.h>
 
 using namespace std;
 using namespace ros;
