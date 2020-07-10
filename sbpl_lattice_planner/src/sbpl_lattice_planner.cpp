@@ -118,6 +118,8 @@ void SBPLLatticePlanner::initialize(std::string name, costmap_2d::Costmap2DROS* 
     double nominalvel_mpersecs, timetoturn45degsinplace_secs;
     private_nh.param("nominalvel_mpersecs", nominalvel_mpersecs, 0.4);
     private_nh.param("timetoturn45degsinplace_secs", timetoturn45degsinplace_secs, 0.6);
+    int numberofangles = 16;
+    private_nh.param("numberofangles", numberofangles, 16);
 
     int lethal_obstacle;
     private_nh.param("lethal_obstacle", lethal_obstacle, 20);
@@ -182,14 +184,28 @@ void SBPLLatticePlanner::initialize(std::string name, costmap_2d::Costmap2DROS* 
     bool ret;
     try
     {
+      EnvNAVXYTHETALAT_InitParms p;
+      p.numThetas = numberofangles;
+      p.mapdata = 0;
+      p.startx = 0;
+      p.starty = 0;
+      p.starttheta = 0;
+      p.goalx = 0;
+      p.goaly = 0;
+      p.goaltheta = 0;
+      p.goaltol_x = 0;
+      p.goaltol_y = 0;
+      p.goaltol_theta = 0;
+
       ret = env_->InitializeEnv(costmap_ros_->getCostmap()->getSizeInCellsX(),  // width
                                 costmap_ros_->getCostmap()->getSizeInCellsY(),  // height
-                                0,                                              // mapdata
-                                0, 0, 0,                                        // start (x, y, theta, t)
-                                0, 0, 0,                                        // goal (x, y, theta)
-                                0, 0, 0,                                        // goal tolerance
-                                perimeterptsV, costmap_ros_->getCostmap()->getResolution(), nominalvel_mpersecs,
-                                timetoturn45degsinplace_secs, obst_cost_thresh, primitive_filename_.c_str());
+                                perimeterptsV,
+                                costmap_ros_->getCostmap()->getResolution(),
+                                nominalvel_mpersecs,
+                                timetoturn45degsinplace_secs,
+                                obst_cost_thresh,
+                                primitive_filename_.c_str(),
+                                p);
       current_env_width_ = costmap_ros_->getCostmap()->getSizeInCellsX();
       current_env_height_ = costmap_ros_->getCostmap()->getSizeInCellsY();
     }
