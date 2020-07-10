@@ -8,7 +8,7 @@ project(sbpl_lattice_planner)
 set(THIS_PACKAGE_ROS_DEPS roscpp costmap_2d nav_core pluginlib tf2
   geometry_msgs nav_msgs)
 find_package(catkin REQUIRED COMPONENTS
-  ${THIS_PACKAGE_ROS_DEPS} message_generation)
+  ${THIS_PACKAGE_ROS_DEPS} message_generation dynamic_reconfigure)
 
 # Find SBPL
 find_package(SBPL REQUIRED)
@@ -21,6 +21,11 @@ include_directories(include ${catkin_INCLUDE_DIRS} ${SBPL_INCLUDE_DIRS})
 
 add_message_files(FILES SBPLLatticePlannerStats.msg)
 generate_messages(DEPENDENCIES geometry_msgs)
+
+
+generate_dynamic_reconfigure_options(
+  cfg/SbplReconfigure.cfg
+)
 
 ##############################################################################
 # Define package
@@ -39,7 +44,7 @@ catkin_package(
 
 add_library(${PROJECT_NAME} src/sbpl_lattice_planner.cpp)
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${SBPL_LIBRARIES})
-add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg)
 target_compile_options(${PROJECT_NAME} PUBLIC "-Wno-terminate")  # suppress warning from included SBPL header
 
 ##############################################################################
