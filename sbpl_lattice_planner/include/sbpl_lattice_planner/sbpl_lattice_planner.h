@@ -57,6 +57,17 @@ public:
                         const geometry_msgs::PoseStamped& goal, 
                         std::vector<geometry_msgs::PoseStamped>& plan);
 
+  /**
+   * @brief Given a goal pose in the world, compute a plan
+   * @param start The start pose 
+   * @param goal The goal pose 
+   * @param plan The plan... filled by the planner
+   * @return True if a valid plan was found, false otherwise
+   */
+  virtual bool makePlanInternal(const geometry_msgs::PoseStamped& start, 
+                        const geometry_msgs::PoseStamped& goal, 
+                        std::vector<geometry_msgs::PoseStamped>& plan);
+
   virtual ~SBPLLatticePlanner(){};
 
 private:
@@ -100,6 +111,11 @@ private:
   ros::Publisher plan_pub_;
   ros::Publisher rough_plan_pub_;
   ros::Publisher stats_publisher_;
+
+  // This is to manage when to update the plan
+  geometry_msgs::PoseStamped previous_goal_;
+  geometry_msgs::PoseStamped robot_pose_when_plan_was_created_;
+  std::vector<geometry_msgs::PoseStamped> previous_plan_;
 };
 };
 
