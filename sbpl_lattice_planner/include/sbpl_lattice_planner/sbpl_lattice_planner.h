@@ -19,6 +19,9 @@ using namespace std;
 // global representation
 #include <nav_core/base_global_planner.h>
 
+#include <dynamic_reconfigure/server.h>
+#include <sbpl_lattice_planner/SbplReconfigureConfig.h>
+
 namespace sbpl_lattice_planner{
 
 class SBPLLatticePlanner : public nav_core::BaseGlobalPlanner{
@@ -70,6 +73,8 @@ public:
 
   virtual ~SBPLLatticePlanner(){};
 
+  void reconfigureCallback(sbpl_lattice_planner::SbplReconfigureConfig &config, uint32_t level);
+
 private:
   unsigned char costMapCostToSBPLCost(unsigned char newcost);
   void publishStats(int solution_cost, int solution_size, 
@@ -116,6 +121,9 @@ private:
   geometry_msgs::PoseStamped previous_goal_;
   geometry_msgs::PoseStamped robot_pose_when_plan_was_created_;
   std::vector<geometry_msgs::PoseStamped> previous_plan_;
+  // this class stores the configuration for replanning.
+  sbpl_lattice_planner::SbplReconfigureConfig config_;
+  dynamic_reconfigure::Server<sbpl_lattice_planner::SbplReconfigureConfig> *reconfigure_server_;
 };
 };
 

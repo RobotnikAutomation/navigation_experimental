@@ -229,6 +229,8 @@ void SBPLLatticePlanner::initialize(std::string name, costmap_2d::Costmap2DROS* 
     stats_publisher_ =
         private_nh.advertise<sbpl_lattice_planner::SBPLLatticePlannerStats>("sbpl_lattice_planner_stats", 1);
 
+    reconfigure_server_ = new dynamic_reconfigure::Server<sbpl_lattice_planner::SbplReconfigureConfig>(private_nh);
+    reconfigure_server_->setCallback(boost::bind(&SBPLLatticePlanner::reconfigureCallback, this, _1, _2));
     initialized_ = true;
   }
 }
@@ -336,16 +338,15 @@ bool SBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped& start, const
     must_make_plan = true;
   }
 
-  double distance_between_plannings = 10;
-  if (distanceBetweenPoses(robot_pose, robot_pose_when_plan_was_created_) > distance_between_plannings)
+  if (distanceBetweenPoses(robot_pose, robot_pose_when_plan_was_created_) > config_.distance_between_plannings)
   {
     
     ROS_INFO("Planning because we have travelled the minimum distance with current plan");
     must_make_plan = true;
   }
 
-  double maximum_time_between_plannings = 10;
-  if ((robot_pose.header.stamp - robot_pose_when_plan_was_created_.header.stamp).toSec() > maximum_time_between_plannings)
+  //double maximum_time_between_plannings = 10;
+  if ((robot_pose.header.stamp - robot_pose_when_plan_was_created_.header.stamp).toSec() > config_.maximum_time_between_plannings)
   {
     ROS_INFO("Planning because previous plan is too old");
     must_make_plan = true;
@@ -366,12 +367,12 @@ bool SBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped& start, const
   double dy = goal.pose.position.y - robot_pose.pose.position.y;
   
   double dist = std::sqrt(dx*dx+dy*dy);
-  double maximum_planning_distance = 20;
+//  double maximum_planning_distance = 20;
 
-  if (dist > maximum_planning_distance)
+  if (dist > config_.maximum_planning_distance)
   {
-    actual_goal.pose.position.x = robot_pose.pose.position.x + maximum_planning_distance * dx/dist;
-    actual_goal.pose.position.y = robot_pose.pose.position.y + maximum_planning_distance * dy/dist;
+    actual_goal.pose.position.x = robot_pose.pose.position.x + config_.maximum_planning_distance * dx/dist;
+    actual_goal.pose.position.y = robot_pose.pose.position.y + config_.maximum_planning_distance * dy/dist;
     actual_goal.pose.orientation = tf::createQuaternionMsgFromYaw(std::atan2(dy,dx));
     ROS_INFO("Goal is too far. Replacing goal: (%f, %f, %f) with (%f, %f, %f)", goal.pose.position.x, goal.pose.position.x, tf::getYaw(goal.pose.orientation),
             actual_goal.pose.position.x, actual_goal.pose.position.x, tf::getYaw(actual_goal.pose.orientation));
@@ -686,5 +687,10 @@ bool SBPLLatticePlanner::makePlanInternal(const geometry_msgs::PoseStamped& star
   publishStats(solution_cost, sbpl_path.size(), start, goal);
 
   return true;
+}
+
+void SBPLLatticePlanner::reconfigureCallback(sbpl_lattice_planner::SbplReconfigureConfig &config, uint32_t level)
+{
+    config_ = config;
 }
 };
