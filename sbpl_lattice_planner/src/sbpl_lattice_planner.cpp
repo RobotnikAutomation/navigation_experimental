@@ -300,12 +300,96 @@ unsigned char SBPLLatticePlanner::computeCircumscribedCost()
   return result;
 }
 
+double distanceBetweenPoses(const geometry_msgs::PoseStamped& one, const geometry_msgs::PoseStamped& two)
+{
+  double dx = one.pose.position.x - two.pose.position.x;
+  double dy = one.pose.position.y - two.pose.position.y;
+  return std::sqrt(dx*dx +dy*dy);
+}
+
 bool SBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped& start, const geometry_msgs::PoseStamped& goal,
+                                  std::vector<geometry_msgs::PoseStamped>& plan)
+{
+  bool got_pose = false;
+  geometry_msgs::PoseStamped robot_pose;
+  got_pose = costmap_ros_->getRobotPose(robot_pose);
+  if (got_pose == false)
+  {
+    ROS_ERROR("Cannot got current robot pose");
+    plan.empty();
+    return false;
+  }
+
+  bool must_make_plan = false;
+
+  if (previous_plan_.empty())
+  {
+    // we still do not have a valid plan
+    ROS_INFO("Planning because we do not have a previous plan");
+    must_make_plan = true;
+  }  
+  
+  if (goal != previous_goal_)
+  {
+    // if goal has changed at all
+    ROS_INFO("Planning because goal has changed");
+    must_make_plan = true;
+  }
+
+  double distance_between_plannings = 10;
+  if (distanceBetweenPoses(robot_pose, robot_pose_when_plan_was_created_) > distance_between_plannings)
+  {
+    
+    ROS_INFO("Planning because we have travelled the minimum distance with current plan");
+    must_make_plan = true;
+  }
+
+  double maximum_time_between_plannings = 10;
+  if ((robot_pose.header.stamp - robot_pose_when_plan_was_created_.header.stamp).toSec() > maximum_time_between_plannings)
+  {
+    ROS_INFO("Planning because previous plan is too old");
+    must_make_plan = true;
+  }
+
+  if (must_make_plan == false)
+  {
+    ROS_INFO("Using old plan because I think it is still valid");
+    plan = previous_plan_;
+    ROS_INFO("Publish plan here");
+    return true;
+  }
+
+  previous_goal_ = goal;
+
+  geometry_msgs::PoseStamped actual_goal = goal;
+  double dx = goal.pose.position.x - robot_pose.pose.position.x;
+  double dy = goal.pose.position.y - robot_pose.pose.position.y;
+  
+  double dist = std::sqrt(dx*dx+dy*dy);
+  double maximum_planning_distance = 20;
+
+  if (dist > maximum_planning_distance)
+  {
+    actual_goal.pose.position.x = robot_pose.pose.position.x + maximum_planning_distance * dx/dist;
+    actual_goal.pose.position.y = robot_pose.pose.position.y + maximum_planning_distance * dy/dist;
+    actual_goal.pose.orientation = tf::createQuaternionMsgFromYaw(std::atan2(dy,dx));
+    ROS_INFO("Goal is too far. Replacing goal: (%f, %f, %f) with (%f, %f, %f)", goal.pose.position.x, goal.pose.position.x, tf::getYaw(goal.pose.orientation),
+            actual_goal.pose.position.x, actual_goal.pose.position.x, tf::getYaw(actual_goal.pose.orientation));
+  }
+
+  bool successful = makePlanInternal(start, actual_goal, plan);
+  previous_plan_ = plan;
+  robot_pose_when_plan_was_created_ = robot_pose;
+  return successful;
+}
+
+bool SBPLLatticePlanner::makePlanInternal(const geometry_msgs::PoseStamped& start, const geometry_msgs::PoseStamped& goal,
                                   std::vector<geometry_msgs::PoseStamped>& plan)
 {
   if (!initialized_)
   {
     ROS_ERROR("Global planner is not initialized");
+    plan.clear();
     return false;
   }
 
@@ -345,28 +429,6 @@ bool SBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped& start, const
            start.pose.position.y, goal.pose.position.x, goal.pose.position.y);
   double theta_start = 2 * atan2(start.pose.orientation.z, start.pose.orientation.w);
   double theta_goal = 2 * atan2(goal.pose.orientation.z, goal.pose.orientation.w);
-  double theta_actual_goal = 2 * atan2(goal.pose.orientation.z, goal.pose.orientation.w);
-
-
-  geometry_msgs::PoseStamped robot_pose;
-  costmap_ros_->getRobotPose(robot_pose);
-
-  geometry_msgs::PoseStamped actual_goal = goal;
-  double dx = goal.pose.position.x - robot_pose.pose.position.x;
-  double dy = goal.pose.position.y - robot_pose.pose.position.y;
-  
-  double dist = std::sqrt(dx*dx+dy*dy);
-  double max_allowed_distance = 20;
-
-  if (dist > max_allowed_distance)
-  {
-    ROS_INFO_STREAM("Goal is too far. Replacing goal: " << actual_goal.pose);
-    actual_goal.pose.position.x = robot_pose.pose.position.x + max_allowed_distance * dx/dist;
-    actual_goal.pose.position.y = robot_pose.pose.position.y + max_allowed_distance * dy/dist;
-    actual_goal.pose.orientation = tf::createQuaternionMsgFromYaw(std::atan2(dy,dx));
-    theta_actual_goal = std::atan2(dy,dx);
-    ROS_INFO_STREAM("With goal: " << actual_goal.pose);
-  }
 
   try
   {
@@ -386,8 +448,8 @@ bool SBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped& start, const
 
   try
   {
-    int ret = env_->SetGoal(actual_goal.pose.position.x - costmap_ros_->getCostmap()->getOriginX(),
-                            actual_goal.pose.position.y - costmap_ros_->getCostmap()->getOriginY(), theta_actual_goal);
+    int ret = env_->SetGoal(goal.pose.position.x - costmap_ros_->getCostmap()->getOriginX(),
+                            goal.pose.position.y - costmap_ros_->getCostmap()->getOriginY(), theta_goal);
     if (ret < 0 || planner_->set_goal(ret) == 0)
     {
       ROS_ERROR("ERROR: failed to set goal state\n");
@@ -477,13 +539,15 @@ bool SBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped& start, const
     else
     {
       ROS_INFO("Solution not found\n");
-      publishStats(solution_cost, 0, start, actual_goal);
+      publishStats(solution_cost, 0, start, goal);
+      plan.clear();
       return false;
     }
   }
   catch (SBPL_Exception* e)
   {
     ROS_ERROR("SBPL encountered a fatal exception while planning");
+    plan.clear();
     return false;
   }
 
@@ -497,6 +561,7 @@ bool SBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped& start, const
   catch (SBPL_Exception* e)
   {
     ROS_ERROR("SBPL encountered a fatal exception while reconstructing the path");
+    plan.clear();
     return false;
   }
   // if the plan has zero points, add a single point to make move_base happy
@@ -618,7 +683,7 @@ bool SBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped& start, const
   gui_path.poses = rough_plan;
   rough_plan_pub_.publish(gui_path);
 
-  publishStats(solution_cost, sbpl_path.size(), start, actual_goal);
+  publishStats(solution_cost, sbpl_path.size(), start, goal);
 
   return true;
 }
