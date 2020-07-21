@@ -325,12 +325,38 @@ double distanceBetweenPoses(const geometry_msgs::PoseStamped& one, const geometr
   return std::sqrt(dx*dx +dy*dy);
 }
 
+bool notEqualPoses(const geometry_msgs::PoseStamped& one, const geometry_msgs::PoseStamped& two)
+{
+  // header
+  bool sequence = one.header.seq != two.header.seq;
+  bool time_stamp = one.header.stamp != two.header.stamp;
+  bool frame_id = one.header.frame_id != two.header.frame_id;
+  // pose - position
+  bool position_x = one.pose.position.x != two.pose.position.x;
+  bool position_y = one.pose.position.y != two.pose.position.y;
+  bool position_z = one.pose.position.z != two.pose.position.z;
+  // pose - orientation
+  bool orientation_x = one.pose.orientation.x != two.pose.orientation.x;
+  bool orientation_y = one.pose.orientation.y != two.pose.orientation.y;
+  bool orientation_z = one.pose.orientation.z != two.pose.orientation.z;
+  bool orientation_w = one.pose.orientation.w != two.pose.orientation.w;
+
+  bool is_not_equal = sequence || time_stamp || frame_id || position_x || position_y ||
+         position_z || orientation_x || orientation_y || orientation_z || orientation_w; 
+
+  return is_not_equal;
+}
+
 bool SBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped& start, const geometry_msgs::PoseStamped& goal,
                                   std::vector<geometry_msgs::PoseStamped>& plan)
 {
   bool got_pose = false;
+  tf::Stamped<tf::Pose> robot_pose_tf;
+  got_pose = costmap_ros_->getRobotPose(robot_pose_tf);
+
   geometry_msgs::PoseStamped robot_pose;
-  got_pose = costmap_ros_->getRobotPose(robot_pose);
+  tf::poseStampedTFToMsg(robot_pose_tf, robot_pose);
+
   if (got_pose == false)
   {
     ROS_ERROR("Cannot got current robot pose");
@@ -347,7 +373,7 @@ bool SBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped& start, const
     must_make_plan = true;
   }  
   
-  if (goal != previous_goal_)
+  if (notEqualPoses(goal, previous_goal_))
   {
     // if goal has changed at all
     ROS_INFO("Planning because goal has changed");
