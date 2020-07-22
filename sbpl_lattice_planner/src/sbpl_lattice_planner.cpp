@@ -325,7 +325,18 @@ bool SBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped& start, const
 {
   bool got_pose = false;
   geometry_msgs::PoseStamped robot_pose;
-  got_pose = costmap_ros_->getRobotPose(robot_pose);
+  try
+  {
+    tf::Stamped<tf::Pose> robot_pose_tf, goal_pose_tf;
+    costmap_ros_->getRobotPose(robot_pose_tf);
+    tf::poseStampedTFToMsg(robot_pose_tf, robot_pose);
+    got_pose = true;
+  }
+  catch (ros::Exception& e)
+  {
+    ROS_ERROR("Error occured: %s", e.what());
+    got_pose = false;
+  }
   if (got_pose == false)
   {
     ROS_ERROR("Cannot got current robot pose");
@@ -342,7 +353,13 @@ bool SBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped& start, const
     must_make_plan = true;
   }
 
-  if (goal != previous_goal_)
+  if (goal.pose.position.x != previous_goal_.pose.position.x &&
+      goal.pose.position.y != previous_goal_.pose.position.y &&
+      goal.pose.position.z != previous_goal_.pose.position.z &&
+      goal.pose.orientation.x != previous_goal_.pose.orientation.x &&
+      goal.pose.orientation.y != previous_goal_.pose.orientation.y &&
+      goal.pose.orientation.z != previous_goal_.pose.orientation.z &&
+      goal.pose.orientation.w != previous_goal_.pose.orientation.w)
   {
     // if goal has changed at all
     ROS_INFO("Planning because goal has changed");
@@ -632,8 +649,8 @@ bool SBPLLatticePlanner::makePlanInternal(const geometry_msgs::PoseStamped& star
     for (int j = ((i - smooth_window_ < 0) ? 0 : i - smooth_window_);
          j <= ((i + smooth_window_) < rough_plan.size() ? i + smooth_window_ : rough_plan.size() - 1); j++)
     {
-      ROS_DEBUG("Debugging indices. size: %d, i: %d, j: %d, max %d, total %d", rough_plan.size(), i, j,
-                ((i + smooth_window_) < rough_plan.size() ? i + smooth_window_ : rough_plan.size() - 1), total);
+      ROS_DEBUG("Debugging indices. size: %d, i: %d, j: %d, max %d, total %d", (int)rough_plan.size(), i, j,
+                (int)((i + smooth_window_) < rough_plan.size() ? i + smooth_window_ : rough_plan.size() - 1), total);
       smoothed_pose.pose.position.x += rough_plan[j].pose.position.x;
       smoothed_pose.pose.position.y += rough_plan[j].pose.position.y;
       smoothed_pose.pose.position.z += rough_plan[j].pose.position.z;
