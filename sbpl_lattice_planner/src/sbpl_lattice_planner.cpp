@@ -1,39 +1,39 @@
 /*********************************************************************
-*
-* Software License Agreement (BSD License)
-*
-*  Copyright (c) 2008, Willow Garage, Inc.
-*  All rights reserved.
-*
-*  Redistribution and use in source and binary forms, with or without
-*  modification, are permitted provided that the following conditions
-*  are met:
-*
-*   * Redistributions of source code must retain the above copyright
-*     notice, this list of conditions and the following disclaimer.
-*   * Redistributions in binary form must reproduce the above
-*     copyright notice, this list of conditions and the following
-*     disclaimer in the documentation and/or other materials provided
-*     with the distribution.
-*   * Neither the name of the Willow Garage nor the names of its
-*     contributors may be used to endorse or promote products derived
-*     from this software without specific prior written permission.
-*
-*  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-*  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-*  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-*  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-*  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-*  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-*  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-*  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-*  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-*  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-*  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-*  POSSIBILITY OF SUCH DAMAGE.
-*
-* Author: Mike Phillips
-*********************************************************************/
+ *
+ * Software License Agreement (BSD License)
+ *
+ *  Copyright (c) 2008, Willow Garage, Inc.
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+ *   * Neither the name of the Willow Garage nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *  POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Author: Mike Phillips
+ *********************************************************************/
 
 #include <sbpl_lattice_planner/sbpl_lattice_planner.h>
 #include <pluginlib/class_list_macros.hpp>
@@ -55,7 +55,7 @@ bool operator==(const Point& p1, const Point& p2)
 {
   return p1.x == p2.x && p1.y == p2.y && p1.z == p2.z;
 }
-}
+}  // namespace geometry_msgs
 
 namespace sbpl_lattice_planner
 {
@@ -199,13 +199,8 @@ void SBPLLatticePlanner::initialize(std::string name, costmap_2d::Costmap2DROS* 
 
       ret = env_->InitializeEnv(costmap_ros_->getCostmap()->getSizeInCellsX(),  // width
                                 costmap_ros_->getCostmap()->getSizeInCellsY(),  // height
-                                perimeterptsV,
-                                costmap_ros_->getCostmap()->getResolution(),
-                                nominalvel_mpersecs,
-                                timetoturn45degsinplace_secs,
-                                obst_cost_thresh,
-                                primitive_filename_.c_str(),
-                                p);
+                                perimeterptsV, costmap_ros_->getCostmap()->getResolution(), nominalvel_mpersecs,
+                                timetoturn45degsinplace_secs, obst_cost_thresh, primitive_filename_.c_str(), p);
       current_env_width_ = costmap_ros_->getCostmap()->getSizeInCellsX();
       current_env_height_ = costmap_ros_->getCostmap()->getSizeInCellsY();
     }
@@ -322,7 +317,7 @@ double distanceBetweenPoses(const geometry_msgs::PoseStamped& one, const geometr
 {
   double dx = one.pose.position.x - two.pose.position.x;
   double dy = one.pose.position.y - two.pose.position.y;
-  return std::sqrt(dx*dx +dy*dy);
+  return std::sqrt(dx * dx + dy * dy);
 }
 
 bool SBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped& start, const geometry_msgs::PoseStamped& goal,
@@ -345,8 +340,8 @@ bool SBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped& start, const
     // we still do not have a valid plan
     ROS_INFO("Planning because we do not have a previous plan");
     must_make_plan = true;
-  }  
-  
+  }
+
   if (goal != previous_goal_)
   {
     // if goal has changed at all
@@ -356,13 +351,13 @@ bool SBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped& start, const
 
   if (distanceBetweenPoses(robot_pose, robot_pose_when_plan_was_created_) > config_.distance_between_plannings)
   {
-    
     ROS_INFO("Planning because we have travelled the minimum distance with current plan");
     must_make_plan = true;
   }
 
-  //double maximum_time_between_plannings = 10;
-  if ((robot_pose.header.stamp - robot_pose_when_plan_was_created_.header.stamp).toSec() > config_.maximum_time_between_plannings)
+  // double maximum_time_between_plannings = 10;
+  if ((robot_pose.header.stamp - robot_pose_when_plan_was_created_.header.stamp).toSec() >
+      config_.maximum_time_between_plannings)
   {
     ROS_INFO("Planning because previous plan is too old");
     must_make_plan = true;
@@ -381,17 +376,18 @@ bool SBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped& start, const
   geometry_msgs::PoseStamped actual_goal = goal;
   double dx = goal.pose.position.x - robot_pose.pose.position.x;
   double dy = goal.pose.position.y - robot_pose.pose.position.y;
-  
-  double dist = std::sqrt(dx*dx+dy*dy);
-//  double maximum_planning_distance = 20;
+
+  double dist = std::sqrt(dx * dx + dy * dy);
+  //  double maximum_planning_distance = 20;
 
   if (dist > config_.maximum_planning_distance)
   {
-    actual_goal.pose.position.x = robot_pose.pose.position.x + config_.maximum_planning_distance * dx/dist;
-    actual_goal.pose.position.y = robot_pose.pose.position.y + config_.maximum_planning_distance * dy/dist;
-    actual_goal.pose.orientation = tf::createQuaternionMsgFromYaw(std::atan2(dy,dx));
-    ROS_INFO("Goal is too far. Replacing goal: (%f, %f, %f) with (%f, %f, %f)", goal.pose.position.x, goal.pose.position.x, tf::getYaw(goal.pose.orientation),
-            actual_goal.pose.position.x, actual_goal.pose.position.x, tf::getYaw(actual_goal.pose.orientation));
+    actual_goal.pose.position.x = robot_pose.pose.position.x + config_.maximum_planning_distance * dx / dist;
+    actual_goal.pose.position.y = robot_pose.pose.position.y + config_.maximum_planning_distance * dy / dist;
+    actual_goal.pose.orientation = tf::createQuaternionMsgFromYaw(std::atan2(dy, dx));
+    ROS_INFO("Goal is too far. Replacing goal: (%f, %f, %f) with (%f, %f, %f)", goal.pose.position.x,
+             goal.pose.position.x, tf::getYaw(goal.pose.orientation), actual_goal.pose.position.x,
+             actual_goal.pose.position.x, tf::getYaw(actual_goal.pose.orientation));
   }
 
   bool successful = makePlanInternal(start, actual_goal, plan);
@@ -400,8 +396,9 @@ bool SBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped& start, const
   return successful;
 }
 
-bool SBPLLatticePlanner::makePlanInternal(const geometry_msgs::PoseStamped& start, const geometry_msgs::PoseStamped& goal,
-                                  std::vector<geometry_msgs::PoseStamped>& plan)
+bool SBPLLatticePlanner::makePlanInternal(const geometry_msgs::PoseStamped& start,
+                                          const geometry_msgs::PoseStamped& goal,
+                                          std::vector<geometry_msgs::PoseStamped>& plan)
 {
   if (!initialized_)
   {
@@ -606,17 +603,17 @@ bool SBPLLatticePlanner::makePlanInternal(const geometry_msgs::PoseStamped& star
 
     tf2::Quaternion temp;
     temp.setRPY(0, 0, sbpl_path[i].theta);
-//    if (i != sbpl_path.size() - 1 and i != 0) {
-//        // overwrite orientation for points in the middle of the path
-//        pose.pose.orientation = tf::createQuaternionMsgFromYaw(std::atan2(rough_plan[i].pose.position.y - rough_plan[i-1].pose.position.y,
-//        rough_plan[i].pose.position.x - rough_plan[i-1].pose.position.x));
-//    }
-//    else {
-        // keep orientation for last point
-        pose.pose.orientation.x = temp.getX();
-        pose.pose.orientation.y = temp.getY();
-        pose.pose.orientation.z = temp.getZ();
-        pose.pose.orientation.w = temp.getW();
+    //    if (i != sbpl_path.size() - 1 and i != 0) {
+    //        // overwrite orientation for points in the middle of the path
+    //        pose.pose.orientation = tf::createQuaternionMsgFromYaw(std::atan2(rough_plan[i].pose.position.y -
+    //        rough_plan[i-1].pose.position.y, rough_plan[i].pose.position.x - rough_plan[i-1].pose.position.x));
+    //    }
+    //    else {
+    // keep orientation for last point
+    pose.pose.orientation.x = temp.getX();
+    pose.pose.orientation.y = temp.getY();
+    pose.pose.orientation.z = temp.getZ();
+    pose.pose.orientation.w = temp.getW();
     //}
     rough_plan.push_back(pose);
   }
@@ -684,12 +681,12 @@ bool SBPLLatticePlanner::makePlanInternal(const geometry_msgs::PoseStamped& star
     smoothed_pose.pose.orientation.w /= total;
     plan.push_back(smoothed_pose);
   }
- 
+
   // Overwrite orientation
   for (int i = 0; i < plan.size() - 1; i++)
   {
-    plan[i].pose.orientation = tf::createQuaternionMsgFromYaw(std::atan2(plan[i+1].pose.position.y - plan[i].pose.position.y,
-    plan[i+1].pose.position.x - plan[i].pose.position.x));
+    plan[i].pose.orientation = tf::createQuaternionMsgFromYaw(std::atan2(
+        plan[i + 1].pose.position.y - plan[i].pose.position.y, plan[i + 1].pose.position.x - plan[i].pose.position.x));
   }
 
   ROS_DEBUG("Smoothed");
@@ -705,8 +702,8 @@ bool SBPLLatticePlanner::makePlanInternal(const geometry_msgs::PoseStamped& star
   return true;
 }
 
-void SBPLLatticePlanner::reconfigureCallback(sbpl_lattice_planner::SbplReconfigureConfig &config, uint32_t level)
+void SBPLLatticePlanner::reconfigureCallback(sbpl_lattice_planner::SbplReconfigureConfig& config, uint32_t level)
 {
-    config_ = config;
+  config_ = config;
 }
-};
+};  // namespace sbpl_lattice_planner
